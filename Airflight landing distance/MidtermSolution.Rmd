@@ -1,0 +1,263 @@
+---
+title: "MidtermReport"
+author: "Sampath Dontharaju(Mid: M08879603)"
+date: "November 28, 2015"
+output: html_document
+---
+
+
+###summary:Initially, flight landing data is read into R using read.csv(method). In data exploration step, it is observed that there are six hundred NA values just for speed_air column and 19 outliers are present in duration,speed_ground,height,distance columns. These outliers are removed in Data cleaning stage and NA values are replaced using EMB(Expectation Maximization algorithm with Bayesian classifier). Now that the entire data set is cleansed, we use pairs() function to visualize the data. From pairs, it is observed that **distancce** has positive corelaton with **speed_air** and **speed_ground** and also there's a linear relationship between **speed_air** and **speed_ground** which is why we should not include in our regression odel in order to avoid **Multicollinearity**. Post visualization, we build a model with all covariates and work our way up to reduce the insignificant variables to end up with a good model. From our observation it is found that **duration, no_pasng,pitch are insignificant** and thus we remove these regressors from our model and end up with **speed_air,height,make** in our final model. Thus we can conclude that **landing distance is impacted by speed_air,height,make** and the equation for the model is distance= 2531.067+80.38*speed_air-0.7656861*(speed_air^2)+13.5053760*height+373.66480*make
+
+###Data cleaning and data exploration:
+###Goal: 
+####goal of this step is to clean the given data and to transform the data to be suitable for data analysis 
+
+```{r echo=FALSE}
+landing_DAMdata <-read.csv('D:/Assignments UC sem1/DATA Analysis Methods/Midterm/Landing (1).csv',header = TRUE)
+ summary(landing_DAMdata)
+```
+### observation: 
+#### we can observe from the data that there are 800 observations and 8 variables 
+#### from the summary we can infer that  there are  **600** NA values in the speed_air.
+
+###decision: 
+#### we cannot neglect the NA values and replace them with zeros. To fill the values with meaningfl random variables used the amelia() function in Amelia package which replaces the NA values with random values using bayesian classification
+```{r echo=FALSE}
+ 
+library(Amelia)
+cleanedData<- amelia(landing_DAMdata[2:8],m=1,p2s=0,frontend=FALSE)
+landing_DAMdata[2:8] =  cleanedData$imputations$imp1
+
+landing_DAMdata <- landing_DAMdata[!(landing_DAMdata$duration< 40 | landing_DAMdata$speed_ground<30 | landing_DAMdata$speed_ground>140 |landing_DAMdata$height<6 | landing_DAMdata$distance>6000 ),]
+
+
+#classifying the aircraft as "0" for boeing and "1" for airbus 
+for(i in 1:781)
+  {
+   
+  if(landing_DAMdata$aircraft[i] == "boeing")
+  {
+    landing_DAMdata$make[i] = 0
+  } else 
+    {
+    
+    landing_DAMdata$make[i] = 1
+  }
+}
+
+```
+
+###2.Data Visualization
+
+####**goal**:Goal is to show the plots between all the variables and analyse the relationships between them 
+
+####**observation**: from the below plots, we can understand that there is a linear relationship  between distance(dependent variable) and independent variables(speed_ground) , distance(dependent variable) and  (speed_air) and we can also observe that if both speed_ground and speed_air are in our multiple regression model  then there exists multicolinearity between them as there is a strong corealation(0.99) between speed_ground and speed_air.
+
+```{r echo=FALSE}
+attach(landing_DAMdata)
+pairs(landing_DAMdata)
+cor(landing_DAMdata[2:9])
+```
+
+####By looking at the correlation matrix we can say that **distance** is strongly coreleated with **speed_air** and **speed_ground**. 
+####we can also see strong correlation between indepedent variables speed_air and speed_ground and therefore we might say that there exists a multicolinearity if we include both speed_air and speed_ground in our multiple regression model.
+
+
+
+###3.Model checking 
+###Goal: 
+####Goal of model checking is to check the exact model which fits the data.Build models using all covariates and check the summary statistics and then make decisions whether to accept or create the model.
+
+####Observation: we first create a multi regression model with 7 indepedent variables and based on the summary and anova statistics of the model we remove that indpendent variables one at a time the independent variables which fail the p-test and f-statistics.
+
+####building the multiple regression model with distance as dependent. variable and all other variables as independent.
+
+```{r echo=FALSE}
+MultiregModel_7 <- lm(distance~(duration+no_pasg+speed_air+speed_ground+height+pitch+make), data = landing_DAMdata)
+
+summary(MultiregModel_7)
+anova(MultiregModel_7)
+```
+###decision/conclusion:
+
+#### from the summary results we can conclude that this is not a good model as the p-values for **duration** **no_psg** and**pitch** have high vale p-values which are greater than 0.05 and hence we can reject this model and we can remove one insignificant independent variable at a time.
+
+
+###4. Repeated exploration until best fit model is achieved
+#### Goal: Goal of this step is to repeatedly build the models and check the summary statisctics and f-statistics values and remove one independent variable at a time until we get the best fit model.
+
+
+
+####observation:  creating model(MultiregModel_6) with 6 independent variables(duration,no_pasg,speed_air,speed_ground,height+make) and by removing independent variable **pitch**.
+
+```{r echo=FALSE}
+
+MultiregModel_6 <- lm(distance~(duration+no_pasg+speed_air+speed_ground+height+make), data = landing_DAMdata)
+
+summary(MultiregModel_6)
+anova(MultiregModel_6)
+
+```
+
+####decision : As no_Pasg has highest value and greater than 0.05 we can remove this indepedent variable and reject this model. and create a new model without no_pasg
+
+#### creating  model(MultiregModel_5) with 5 independent variables(duration,speed_air,speed_ground,height,make) by removing independent variable **no_pasg**
+
+```{r echo=FALSE}
+
+MultiregModel_5 <- lm(distance~(duration+speed_air+speed_ground+height+make), data = landing_DAMdata)
+
+summary(MultiregModel_5)
+anova(MultiregModel_5)
+
+```
+
+#### From the  summary and statistics of five dependent variable model we can remove the variable **duration** from the model as the p-value is insignificant and greater than 0.05 and we can reject this model.
+
+###Multi regression model with 4 independent variables(speed_air,speed_ground,height,make) 
+
+
+```{r echo=FALSE}
+MultiregModel_4 <- lm(distance~(speed_air+speed_ground+height+make), data = landing_DAMdata)
+summary(MultiregModel_4)
+anova(MultiregModel_4)
+par(mfrow=c(3,3))
+plot(MultiregModel_4)
+```
+
+####based on the multi colinearity check we can remove a independent variable from this  model.
+
+###Multi colinearity check
+
+###since there exists 99% corealataion between **speed_air** and **speed_ground**  and having both these dependent variables may create multicolinearity
+
+```{r echo=FALSE}
+cor(landing_DAMdata[2:9])
+library(car)
+vif(MultiregModel_4)
+```
+
+###decision or conclusion:
+
+#### we can infer from the result that there exists a multi colinearity between speed_air and speed_ground as their corelation value is 0.99 
+
+#### we can infer from the VIF values of speed_air and speed_ground have high values which infer there is a multi colinearity between speed_air and speed_ground
+
+#### the **speed_air** has high coreleation with distance compared with **speed_ground**.Therefore we remove **speed_ground** independent variable from the model and build a new model
+
+
+###Goal :build a model with 3 independent variables and check how good it fits the data.
+
+```{r echo=FALSE}
+MultiregModel_3 <- lm(distance~(speed_air+height+make), data=landing_DAMdata)
+summary(MultiregModel_3)
+anova(MultiregModel_3)
+par(mfrow=c(3,3))
+plot(MultiregModel_3)
+
+plot(speed_air,distance)
+```
+
+###Observation:we can observe that there is a curve between distance  and speed_air  
+
+###decision: to remove the curve i have done the polynomial regression to remove and curve and to get a linear regression.
+
+
+####Doing polynomial regression to the power of 2 for speed_air independent variable following is the plot 
+
+```{r echo=FALSE}
+plot((speed_air+I(speed_air^2)),distance)
+```
+
+####we can still reduce the curve by taking polynomial regression to the power 3 for **speed_air**
+
+
+```{r echo=FALSE}
+plot((speed_air+I(speed_air^2)+I(speed_air^3)),distance)
+```
+####from the above plot we can say that there is no curve in the plot.
+
+
+####Goal :now lets create  two  multiple regression models for with polynomail regression of order 2 and 3 for **speed_air**
+
+###model where **speed_air** is raised to the power of two using polynomial regression 
+```{r echo=FALSE}
+model_deg_2 <- lm(distance ~ (speed_air+I(speed_air^2)+height+make))
+
+summary(model_deg_2)
+anova(model_deg_2)
+plot(model_deg_2$residuals)
+
+```
+
+
+####model where **speed_air** is raised to the power of three using polynomial regression 
+```{r echo=FALSE}
+model_deg_3 <- lm(distance ~ (speed_air+I(speed_air^2)+I(speed_air^3)+height+make))
+
+summary(model_deg_3)
+anova(model_deg_3)
+plot(model_deg_3$residuals)
+
+```
+
+###decision:
+#### when we compare the above summary and f-statistics of  multiple_regression models of polynomial degree 2(speed_air) and polynomial degree of 3(speed_air) models .we can say that the model created with degree 2 of (speed_air) has high percentage of  R-square and adjusted R-square and the **F_statistic** of model  with order 2 polynomial degree of **speed-air** is high compared to model with polynomial degree 3 of speed_air.
+
+####Hence we are considering the model where speed_air is raised to the order of 2 as the best model.
+
+####hence we conclude that model with poynomial regression of speed_air to the power 2  as final model
+
+
+###Model Adequency: 
+####Goal: Here we need to check the residual plots normal distribution , QQ plots and histograms to check whether  the model is the best fit
+
+```{r echo=FALSE}
+final_data_model <- lm(distance ~ (speed_air+I(speed_air^2)+height+make))
+summary(final_data_model)
+anova(final_data_model)
+plot(final_data_model$fitted.values,final_data_model$residuals)
+par(mfrow=c(2,2))
+
+hist(final_data_model$residuals)
+qqnorm(final_data_model$residuals)
+qqline(final_data_model$residuals)
+plot(final_data_model$fitted.values,final_data_model$residuals)
+plot(final_data_model$residuals,distance)
+
+
+```
+
+###calculating the F-test
+```{r echo=FALSE}
+SSR = anova(final_data_model)[1,2] + anova(final_data_model)[2,2] + anova(final_data_model)[3,2] + anova(final_data_model)[4,2]
+SSRes = anova(final_data_model)[5,2]
+SST = SSR + SSRes
+k=anova(final_data_model)[1,1] + anova(final_data_model)[2,1] + anova(final_data_model)[3,1] + anova(final_data_model)[4,1]
+
+n = final_data_model$df.residual
+
+
+F_value = (SSR/k)/(SSRes/final_data_model$df.residual)
+P_value = 1-pf(F_value,1,n-2)
+sprintf("F value is %s",F_value)
+sprintf("P value is %s",P_value)
+
+```
+
+###conclusion:
+####from the plots we can infer that the residuals plots are evenly distributed and QQ lot is independent an dhistogram is normally distributed.
+
+####From the above results  we can conclude that as P value is zero this is the best fitted model to the given dataset and F-value is high and hence we can reject the nullhypothesis. which shows that the model with degree 2 ofpolynomial regression is the best fit
+
+####speed_air,height and  make are the factors impacting landing distance for each aircraft.
+#### the multiple regression data model equation is distance= 2531.067+80.38*speed_air-0.7656861*(speed_air^2)+13.5053760*height+373.66480*make
+
+
+
+
+
+
+
+
+
